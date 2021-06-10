@@ -25,14 +25,13 @@ module ActiveRecord
       tbl = connection.quote_table_name(table_name)
       sanitized_key = "#{tbl}.#{connection.quote_column_name(property_key)}"
       relation = relation.limit(batch_size)
+      comparison = direction == :desc ? '<=' : '>='
 
       records =
         if !start
           relation.to_a
-        elsif direction == :desc
-          relation.where("#{sanitized_key} <= ?", start).to_a
         else
-          relation.where("#{sanitized_key} >= ?", start).to_a
+          relation.where("#{sanitized_key} #{comparison} ?", start).to_a
         end
 
       while records.any?
@@ -51,15 +50,21 @@ module ActiveRecord
           end
         end
 
+        with_start_ids.compact!
+
         without_dups =
-          relation.where.not(relation.klass.primary_key => with_start_ids)
+          if with_start_ids.any?
+            # Not all queries will be selecting a primary key in the result set
+            relation.where.not(relation.klass.primary_key => with_start_ids)
+          else
+            # so in that case (common with group by queries using property key)
+            # make sure to exclude the start entirely, rather than allow its
+            # further inclusion otherwise there is a chance of infinite looping
+            relation.where("#{sanitized_key} <> ?", start)
+          end
 
         records =
-          if direction == :desc
-            without_dups.where("#{sanitized_key} <= ?", start).to_a
-          else
-            without_dups.where("#{sanitized_key} >= ?", start).to_a
-          end
+          without_dups.where("#{sanitized_key} #{comparison} ?", start).to_a
       end
     end
 
