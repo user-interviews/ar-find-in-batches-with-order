@@ -43,6 +43,11 @@ module ActiveRecord
         break if records_size < batch_size
 
         next_start = records.last.try(property_key)
+
+        if with_start_ids.none? && start == next_start
+          raise 'did not increment next start'
+        end
+
         with_start_ids.clear if start != next_start
         start = next_start
 
