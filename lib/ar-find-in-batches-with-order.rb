@@ -64,7 +64,7 @@ module ActiveRecord
           else
             # ...so in that case exclude the start entirely, rather than allow its
             # further inclusion, otherwise there is a chance of infinite looping
-            relation.where("#{sanitized_key} #{exclusive_comparison} ?". start)
+            relation.where("#{sanitized_key} #{exclusive_comparison} ?", start)
           end
 
         without_duplicates.to_a
