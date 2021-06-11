@@ -25,13 +25,18 @@ module ActiveRecord
       tbl = connection.quote_table_name(table_name)
       sanitized_key = "#{tbl}.#{connection.quote_column_name(property_key)}"
       relation = relation.limit(batch_size)
-      comparison = direction == :desc ? '<=' : '>='
+
+      exclusive_comparison = direction == :desc ? '<' : '>'
+      inclusive_comparison = direction == :desc ? '<=' : '>='
 
       records =
         if !start
           relation.to_a
         else
-          relation.where("#{sanitized_key} #{comparison} ?", start).to_a
+          relation.where(
+            "#{sanitized_key} #{inclusive_comparison} ?",
+            start,
+          ).to_a
         end
 
       while records.any?
@@ -52,19 +57,22 @@ module ActiveRecord
 
         with_start_ids.compact!
 
-        without_dups =
+        without_duplicates =
           if with_start_ids.any?
             # Not all queries will be selecting a primary key in the result set
+            # (common with group by queries using property key, for example)
             relation.where.not(relation.klass.primary_key => with_start_ids)
-          else
-            # so in that case (common with group by queries using property key)
-            # make sure to exclude the start entirely, rather than allow its
-            # further inclusion otherwise there is a chance of infinite looping
-            relation.where("#{sanitized_key} <> ?", start)
           end
 
-        records =
-          without_dups.where("#{sanitized_key} #{comparison} ?", start).to_a
+        # ...so in that case exclude the start entirely, rather than allow its
+        # further inclusion, otherwise there is a chance of infinite looping
+        active_comparison =
+          with_start_ids.any? ? inclusive_comparison : exclusive_comparison
+
+        records = without_duplicates.where(
+          "#{sanitized_key} #{active_comparison} ?",
+          start,
+        ).to_a
       end
     end
 
