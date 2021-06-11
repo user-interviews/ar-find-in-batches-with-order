@@ -44,10 +44,6 @@ module ActiveRecord
 
         next_start = records.last.try(property_key)
 
-        if with_start_ids.none? && start == next_start
-          raise 'did not increment next start'
-        end
-
         with_start_ids.clear if start != next_start
         start = next_start
 
@@ -72,7 +68,7 @@ module ActiveRecord
             relation.where("#{sanitized_key} #{exclusive_comparison} ?", start)
           end
 
-        without_duplicates.to_a
+        records = without_duplicates.to_a
       end
     end
 
