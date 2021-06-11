@@ -33,6 +33,7 @@ module ActiveRecord
         if !start
           relation
         else
+          # Note that for the initial query, always be inclusive of the start
           relation.where("#{sanitized_key} #{inclusive_comparison} ?", start)
         end.to_a
 
@@ -43,7 +44,6 @@ module ActiveRecord
         break if records_size < batch_size
 
         next_start = records.last.try(property_key)
-
         with_start_ids.clear if start != next_start
         start = next_start
 
