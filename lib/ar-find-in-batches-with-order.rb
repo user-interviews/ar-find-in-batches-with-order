@@ -31,13 +31,10 @@ module ActiveRecord
 
       records =
         if !start
-          relation.to_a
+          relation
         else
-          relation.where(
-            "#{sanitized_key} #{inclusive_comparison} ?",
-            start,
-          ).to_a
-        end
+          relation.where("#{sanitized_key} #{inclusive_comparison} ?", start)
+        end.to_a
 
       while records.any?
         records_size = records.size
@@ -61,18 +58,16 @@ module ActiveRecord
           if with_start_ids.any?
             # Not all queries will be selecting a primary key in the result set
             # (common with group by queries using property key, for example)
-            relation.where.not(relation.klass.primary_key => with_start_ids)
+            relation
+              .where.not(relation.klass.primary_key => with_start_ids)
+              .where("#{sanitized_key} #{inclusive_comparison} ?", start)
+          else
+            # ...so in that case exclude the start entirely, rather than allow its
+            # further inclusion, otherwise there is a chance of infinite looping
+            relation.where("#{sanitized_key} #{exclusive_comparison} ?". start)
           end
 
-        # ...so in that case exclude the start entirely, rather than allow its
-        # further inclusion, otherwise there is a chance of infinite looping
-        active_comparison =
-          with_start_ids.any? ? inclusive_comparison : exclusive_comparison
-
-        records = without_duplicates.where(
-          "#{sanitized_key} #{active_comparison} ?",
-          start,
-        ).to_a
+        without_duplicates.to_a
       end
     end
 
